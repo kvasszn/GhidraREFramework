@@ -623,7 +623,7 @@ public class IL2CPPDumpImporter extends GhidraScript {
 		type.replaceAtOffset(0x1C, getValueType("System.Int32"), 4, "Count", "");
 
 		String containedType = definition.name.replace("[]", "");
-		var containedDataType = getPassingType(containedType);
+		var containedDataType = getPassingType(containedType, true);
 		if (containedDataType == null) {
 			containedDataType = getValueTypeOrType("/void *");
 		}
