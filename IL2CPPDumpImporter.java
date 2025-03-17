@@ -35,7 +35,7 @@ public class IL2CPPDumpImporter extends GhidraScript {
 	static public AddressFactory addressFactory;
 	static public SymbolTable symbolTable;
 	static public CategoryPath category = new CategoryPath("/IL2CPP_Types");
-	static public HashMap<String, DataType> valueTypes;
+	static public HashMap<String, DataType> primitiveTypes;
 
 	private int classesAdded;
 	private int classesToAdd;
@@ -110,97 +110,44 @@ public class IL2CPPDumpImporter extends GhidraScript {
 		typeManager.addDataType(builtinTypeManager.getDataType("/void"), DataTypeConflictHandler.DEFAULT_HANDLER);
 		typeManager.addDataType(new PointerDataType(typeManager.getDataType("/void")),
 				DataTypeConflictHandler.DEFAULT_HANDLER);
-		
-		final var guid = (Structure)typeManager.addDataType(new StructureDataType("Guid", 0x10), DataTypeConflictHandler.REPLACE_HANDLER);
-		guid.replaceAtOffset(0x0, uint32_t, 4, "Data1", "");
-		guid.replaceAtOffset(0x4, uint16_t, 2, "Data2", "");
-		guid.replaceAtOffset(0x6, uint16_t, 2, "Data3", "");
-		guid.replaceAtOffset(0x8, new ArrayDataType(uint8_t, 8, 1), 8, "Data4", "");
 
-		final var float_t = builtinTypeManager.getDataType("/float");
-		final var vec2 = (Structure)typeManager.addDataType(new StructureDataType("via.vec2", 0x10), DataTypeConflictHandler.REPLACE_HANDLER);
-		vec2.replaceAtOffset(0x0, float_t, 4, "x", "");
-		vec2.replaceAtOffset(0x4, float_t, 4, "y", "");
-
-		final var vec3 = (Structure)typeManager.addDataType(new StructureDataType("via.vec3", 0x10), DataTypeConflictHandler.REPLACE_HANDLER);
-		vec3.replaceAtOffset(0x0, float_t, 4, "x", "");
-		vec3.replaceAtOffset(0x4, float_t, 4, "y", "");
-		vec3.replaceAtOffset(0x8, float_t, 4, "z", "");
-
-		final var vec4 = (Structure)typeManager.addDataType(new StructureDataType("via.vec4", 0x10), DataTypeConflictHandler.REPLACE_HANDLER);
-		vec4.replaceAtOffset(0x0, float_t, 4, "x", "");
-		vec4.replaceAtOffset(0x4, float_t, 4, "y", "");
-		vec4.replaceAtOffset(0x8, float_t, 4, "z", "");
-		vec4.replaceAtOffset(0xC, float_t, 4, "w", "");
-
-		final var mat3 = (Structure)typeManager.addDataType(new StructureDataType("via.mat3", 0x40), DataTypeConflictHandler.REPLACE_HANDLER);
-		mat3.replaceAtOffset(0x00, float_t, 4, "m00", "");
-		mat3.replaceAtOffset(0x04, float_t, 4, "m01", "");
-		mat3.replaceAtOffset(0x08, float_t, 4, "m02", "");
-		mat3.replaceAtOffset(0x10, float_t, 4, "m10", "");
-		mat3.replaceAtOffset(0x14, float_t, 4, "m11", "");
-		mat3.replaceAtOffset(0x18, float_t, 4, "m12", "");
-		mat3.replaceAtOffset(0x20, float_t, 4, "m20", "");
-		mat3.replaceAtOffset(0x24, float_t, 4, "m21", "");
-		mat3.replaceAtOffset(0x28, float_t, 4, "m22", "");
-
-		final var mat4 = (Structure)typeManager.addDataType(new StructureDataType("via.mat4", 0x40), DataTypeConflictHandler.REPLACE_HANDLER);
-		mat4.replaceAtOffset(0x00, float_t, 4, "m00", "");
-		mat4.replaceAtOffset(0x04, float_t, 4, "m01", "");
-		mat4.replaceAtOffset(0x08, float_t, 4, "m02", "");
-		mat4.replaceAtOffset(0x0C, float_t, 4, "m03", "");
-		mat4.replaceAtOffset(0x10, float_t, 4, "m10", "");
-		mat4.replaceAtOffset(0x14, float_t, 4, "m11", "");
-		mat4.replaceAtOffset(0x18, float_t, 4, "m12", "");
-		mat4.replaceAtOffset(0x1C, float_t, 4, "m13", "");
-		mat4.replaceAtOffset(0x20, float_t, 4, "m20", "");
-		mat4.replaceAtOffset(0x24, float_t, 4, "m21", "");
-		mat4.replaceAtOffset(0x28, float_t, 4, "m22", "");
-		mat4.replaceAtOffset(0x2C, float_t, 4, "m23", "");
-		mat4.replaceAtOffset(0x30, float_t, 4, "m30", "");
-		mat4.replaceAtOffset(0x34, float_t, 4, "m31", "");
-		mat4.replaceAtOffset(0x38, float_t, 4, "m32", "");
-		mat4.replaceAtOffset(0x3C, float_t, 4, "m33", "");
-
-		valueTypes = new HashMap<>();
-		valueTypes.put("System.Single", builtinTypeManager.getDataType("/float"));
-		valueTypes.put("System.Double", builtinTypeManager.getDataType("/double"));
-		valueTypes.put("System.Void", builtinTypeManager.getDataType("/void"));
-		valueTypes.put("System.UInt8", uint8_t);
-		valueTypes.put("System.UInt16", uint16_t);
-		valueTypes.put("System.UInt32", uint32_t);
-		valueTypes.put("System.UInt64", uint64_t);
-		valueTypes.put("System.Int8", int8_t);
-		valueTypes.put("System.Int16", int16_t);
-		valueTypes.put("System.Int32", int32_t);
-		valueTypes.put("System.Int64", int64_t);
-		valueTypes.put("System.SByte", builtinTypeManager.getDataType("/byte"));
-		valueTypes.put("System.Byte", builtinTypeManager.getDataType("/byte"));
-		valueTypes.put("System.UByte", builtinTypeManager.getDataType("/uchar"));
-		valueTypes.put("System.UIntPtr", uintptr_t);
-		valueTypes.put("System.IntPtr", intptr_t);
-		valueTypes.put("System.Char", builtinTypeManager.getDataType("/char"));
-		valueTypes.put("System.UChar", builtinTypeManager.getDataType("/uchar"));
-		valueTypes.put("System.Void*", typeManager.getDataType("/void *"));
-		valueTypes.put("System.Boolean", builtinTypeManager.getDataType("/bool"));
-		valueTypes.put("System.TypeCode", builtinTypeManager.getDataType("/int"));
-		valueTypes.put("System.DateTime", uint64_t);
-		valueTypes.put("System.TimeSpan", int64_t);
-		valueTypes.put("System.Guid", guid);
-		valueTypes.put("s8", int8_t);
-		valueTypes.put("u8", uint8_t);
-		valueTypes.put("s16", int16_t);
-		valueTypes.put("u16", uint16_t);
-		valueTypes.put("s32", int32_t);
-		valueTypes.put("u32", uint32_t);
-		valueTypes.put("s64", int64_t);
-		valueTypes.put("u64", uint64_t);
-		valueTypes.put("via.Color", uint32_t);
-		valueTypes.put("via.vec2", vec2);
-		valueTypes.put("via.vec3", vec3);
-		valueTypes.put("via.vec4", vec4);
-		valueTypes.put("via.mat3", mat3);
-		valueTypes.put("via.mat4", mat4);
+		// Terminology:
+		// - ValueType: A type that inherits (directly or indirectly) from System.ValueType or System.Enum
+		// - Primitive Type: A ValueType with size <= sizeof(void*). Hardcoded here for simplicity.
+		// - Reference Type: A type that is not a ValueType. All Reference Types are stored on the heap and are only accessed via pointers.
+		primitiveTypes = new HashMap<>();
+		primitiveTypes.put("System.Single", builtinTypeManager.getDataType("/float"));
+		primitiveTypes.put("System.Double", builtinTypeManager.getDataType("/double"));
+		primitiveTypes.put("System.Void", builtinTypeManager.getDataType("/void"));
+		primitiveTypes.put("System.UInt8", uint8_t);
+		primitiveTypes.put("System.UInt16", uint16_t);
+		primitiveTypes.put("System.UInt32", uint32_t);
+		primitiveTypes.put("System.UInt64", uint64_t);
+		primitiveTypes.put("System.Int8", int8_t);
+		primitiveTypes.put("System.Int16", int16_t);
+		primitiveTypes.put("System.Int32", int32_t);
+		primitiveTypes.put("System.Int64", int64_t);
+		primitiveTypes.put("System.SByte", builtinTypeManager.getDataType("/byte"));
+		primitiveTypes.put("System.Byte", builtinTypeManager.getDataType("/byte"));
+		primitiveTypes.put("System.UByte", builtinTypeManager.getDataType("/uchar"));
+		primitiveTypes.put("System.UIntPtr", uintptr_t);
+		primitiveTypes.put("System.IntPtr", intptr_t);
+		primitiveTypes.put("System.Char", builtinTypeManager.getDataType("/char"));
+		primitiveTypes.put("System.UChar", builtinTypeManager.getDataType("/uchar"));
+		primitiveTypes.put("System.Void*", typeManager.getDataType("/void *"));
+		primitiveTypes.put("System.Boolean", builtinTypeManager.getDataType("/bool"));
+		primitiveTypes.put("System.TypeCode", builtinTypeManager.getDataType("/int"));
+		primitiveTypes.put("System.DateTime", uint64_t);
+		primitiveTypes.put("System.TimeSpan", int64_t);
+		primitiveTypes.put("s8", int8_t);
+		primitiveTypes.put("u8", uint8_t);
+		primitiveTypes.put("s16", int16_t);
+		primitiveTypes.put("u16", uint16_t);
+		primitiveTypes.put("s32", int32_t);
+		primitiveTypes.put("u32", uint32_t);
+		primitiveTypes.put("s64", int64_t);
+		primitiveTypes.put("u64", uint64_t);
+		primitiveTypes.put("via.Color", uint32_t);
 	}
 
 	private void importIL2CPPDump() throws Exception {
@@ -266,12 +213,12 @@ public class IL2CPPDumpImporter extends GhidraScript {
 		}
 	}
 
-	public boolean isValueType(String name) {
-		return valueTypes.containsKey(name);
+	public boolean isPrimitiveType(String name) {
+		return primitiveTypes.containsKey(name);
 	}
 
-	public DataType getValueType(String objectName) {
-		return valueTypes.get(objectName);
+	public DataType getPrimitiveType(String objectName) {
+		return primitiveTypes.get(objectName);
 	}
 
 	private DataType getValueTypeOrType(String name) {
@@ -284,8 +231,8 @@ public class IL2CPPDumpImporter extends GhidraScript {
 			return dt;
 		}
 
-		if (valueTypes.containsKey(name)) {
-			return valueTypes.get(name);
+		if (primitiveTypes.containsKey(name)) {
+			return primitiveTypes.get(name);
 		}
 
 		// Type is not a ValueType
@@ -305,26 +252,38 @@ public class IL2CPPDumpImporter extends GhidraScript {
 	}
 
 	private DataType getPassingType(String name, boolean forField) {
-		// We need to handle Enums, ValueTypes, and all other types separately.
-		// Enums are the only non-ValueTypes that are usually passed by value and stored in
-		// their value form too.
-		// ValueTypes are stored in value form so we use "built-in" ghidra types to
-		// simplify things.
-		// All other types are stored on the heap and are only accessed via pointers.
+		// Primitive types are always used in their value form and are never passed by
+		// reference, unless a parameters explicitly has a ByRef/In/Out flag,
+		// in which case the caller is responsible for handling that.
+		if (isPrimitiveType(name)) {
+			return getPrimitiveType(name);
+		}
+
 		DataType type = getValueTypeOrType(name);
-
-		// Field ValueTypes are always stored in their value form, even if they are larger
-		// than 8 bytes. Return types/parameters on the other hand are always passed as
-		// pointers if they are larger than 8 bytes.
-		if (isValueType(name) && (forField || type.getLength() <= 8)) {
-			return type;
-		}
-
 		var typedef = typeMap.get(name);
-		if (typedef == null || typedef.isEnum) {
+
+		if (forField) {
+			// ValueType and Enum fields are always stored in their value form, even if they are larger than 8 bytes.
+			if (typedef != null && (typedef.isEnum || typedef.isValueType)) {
+				return type;
+			}
+		} else {
+			// If the type is a ValueType and its size is greater than 8 bytes, it is passed as a pointer.
+			if (typedef != null && (typedef.isValueType || typedef.isEnum) && type.getLength() <= 8) {
+				return type;
+			}
+		}
+
+		if (typedef == null) {
 			return type;
 		}
+
 		return typedef.pointerTo;
+	}
+
+	private boolean isReturnAsOutParameter(String name, DataType type) {
+		var typedef = typeMap.get(name);
+		return typedef != null && typedef.isValueType && type.getLength() > 8;
 	}
 
 	private DataType getPassingType(String name) {
@@ -381,7 +340,7 @@ public class IL2CPPDumpImporter extends GhidraScript {
 		// Also, this 'if' is inside the hasParent 'if' because enums always have
 		// System.Enum as parent
 		if (definition.isEnum) {
-			var enumType = new EnumDataType(name, getValueType(definition.underlyingType).getLength());
+			var enumType = new EnumDataType(name, getPrimitiveType(definition.underlyingType).getLength());
 
 			for (var field : definition.fields) {
 				if (!field.isStatic()) {
@@ -588,14 +547,17 @@ public class IL2CPPDumpImporter extends GhidraScript {
 			// Get the return type
 			var retType = getPassingType(method.returnType);
 
+			if (isReturnAsOutParameter(method.returnType, retType)) {
+				funcParams.add(new ParameterImpl("ret", retType, currentProgram));
+			}
+
 			var ret = new ReturnParameterImpl(retType, currentProgram);
 
 			// Methods always take the thread context as their first parameter
 			funcParams.add(new ParameterImpl("vmctx", getValueTypeOrType("/void *"), currentProgram));
 
 			if (method.implFlags.contains("HasThis")) {
-				funcParams
-						.add(new ParameterImpl("this", parent.dataType, currentProgram));
+				funcParams.add(new ParameterImpl("this", parent.dataType, currentProgram));
 			}
 
 			for (var param : params) {
@@ -617,10 +579,10 @@ public class IL2CPPDumpImporter extends GhidraScript {
 		type.growStructure(0x20);
 
 		type.replaceAtOffset(0x0, getValueTypeOrType("/void *"), 8, "object_info", "");
-		type.replaceAtOffset(0x8, getValueType("System.Int32"), 4, "ref_count", "");
+		type.replaceAtOffset(0x8, getPrimitiveType("System.Int32"), 4, "ref_count", "");
 		type.replaceAtOffset(0x10, getValueTypeOrType("/void *"), 8, "contained_type", "");
-		type.replaceAtOffset(0x18, getValueType("System.Int32"), 4, "_n", "");
-		type.replaceAtOffset(0x1C, getValueType("System.Int32"), 4, "Count", "");
+		type.replaceAtOffset(0x18, getPrimitiveType("System.Int32"), 4, "_n", "");
+		type.replaceAtOffset(0x1C, getPrimitiveType("System.Int32"), 4, "Count", "");
 
 		String containedType = definition.name.replace("[]", "");
 		var containedDataType = getPassingType(containedType, true);
