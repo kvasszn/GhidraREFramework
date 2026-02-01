@@ -36,11 +36,13 @@ public class IL2CPPDumpImporter extends GhidraScript {
 	static public SymbolTable symbolTable;
 	static public CategoryPath category = new CategoryPath("/IL2CPP_Types");
 	static public HashMap<String, DataType> primitiveTypes;
+	static public boolean makeShortGeneric = false;
 
 	private int classesAdded;
 	private int classesToAdd;
 	private String classFilter;
 	private BufferedWriter logWriter;
+
 
 	private JSONObject il2cppDump;
 	private HashMap<String, RETypeDefinition> typeMap;
@@ -55,6 +57,7 @@ public class IL2CPPDumpImporter extends GhidraScript {
 		// Fix for MHR Versions >= 16.0.0, which have ASLR enabled.
 		var imageBase = askString("Image Base", "Enter the image base of the executable", "0x140000000");
 		currentProgram.setImageBase(toAddr(imageBase), true);
+
 
 		functionManager = currentProgram.getFunctionManager();
 		builtinTypeManager = state.getTool().getService(DataTypeManagerService.class).getBuiltInDataTypesManager();
@@ -162,6 +165,8 @@ public class IL2CPPDumpImporter extends GhidraScript {
 				"Do you want to automatically run the post import disassemble script after importing?")) {
 			runDisassemble = true;
 		}
+		makeShortGeneric = askYesNo("Make Short Functions Generic?", "Some functions are generic and get used in multiple contexts with different types, this makes some shorter functions generic (sometimes it breaks things)");	
+
 
 		File file = askFile("Select IL2CPP Dump", "Open");
 		var reader = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8);
@@ -478,6 +483,8 @@ public class IL2CPPDumpImporter extends GhidraScript {
 		// in this case we can just overwrite it with our function.
 		var address = addressFactory.getAddress(method.addressString);
 		var symbol = getSymbolAt(address);
+
+
 		if (symbol != null && symbol.getSource() != SourceType.DEFAULT) {
 			try {
 				Function existing = functionManager.getFunctionAt(address);
@@ -505,14 +512,50 @@ public class IL2CPPDumpImporter extends GhidraScript {
 
 		// If the function does not yet exist then we try to create it and then rename it.
 		try {
-			function = createFunction(address, method.name);
-			function.setParentNamespace(getOrCreateNamespace(parent.name));
-			// That could be useful, but it's not worth the huge slowdown it causes
-			// function.setComment(String.format("flags: %s\nimpl flags: %s", method.flags,
-			// method.implFlags));
+			// Idk what stupid bullshit i'm doing here but whatever it kinda works i think
+			if (symbol != null && symbol.getSource() != SourceType.USER_DEFINED && symbol.getSource() != SourceType.IMPORTED) {
+				symbol.delete();
+				function = createFunction(address, method.name);
+				var parentNamespace = getOrCreateNamespace(parent.name);
+				function.setParentNamespace(parentNamespace);
+			}
+			if (symbol == null) {
+				function = createFunction(address, method.name);
+				var parentNamespace = getOrCreateNamespace(parent.name);
+				function.setParentNamespace(parentNamespace);
+			}
+			createLabel(address, method.name, getOrCreateNamespace(parent.name), false, SourceType.IMPORTED);
+			function = getFunctionAt(address);
+
+			// if its a really small function, it's probably generic, so make a generic one instead
+			int instructionCount = 0;
+			InstructionIterator instructions = currentProgram.getListing().getInstructions(function.getBody(), true);
+
+			boolean isShort = false;
+			while (instructions.hasNext()) {
+				Instruction instruction = instructions.next();
+				instructionCount++;
+				if (instruction.getMnemonicString().toLowerCase().contains("jmp")) {
+					break;
+				}
+				if (instructionCount > 6) { 
+					isShort = true;
+					break; 
+				}
+			}
+			if (isShort) {
+				try {
+					function.getSymbol().delete();
+					functionManager.removeFunction(address);
+					var name = String.format("GenericFunction_%x", address.getOffset());
+					createFunction(address, name);
+				} catch (Exception e) {
+					logException("error creating label for generic function: " + method.name, e);
+				}
+				return;
+			}
 		} catch (Exception e) {
-			// println("error creating function: " + e.getMessage());
-			logException("error creating function: " + method.name, e);
+			logException("error creating function: " + method.name + ", parent: " + parent.name, e);
 			return;
 		}
 
@@ -566,8 +609,7 @@ public class IL2CPPDumpImporter extends GhidraScript {
 
 			// Using this function because Function.addParameter is deprecated. This also makes
 			// things easier as ghidra tries to determine Register and stack offset by itself.
-			function.updateFunction("__fastcall", ret, funcParams,
-					Function.FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS, true, SourceType.IMPORTED);
+			function.updateFunction("__fastcall", ret, funcParams, Function.FunctionUpdateType.DYNAMIC_STORAGE_ALL_PARAMS, true, SourceType.IMPORTED);
 		} catch (Exception e) {
 			// println("error parsing function signature:" + e.getMessage());
 			logException("error parsing function signature for " + parent.name + "." + method.name, e);
@@ -661,7 +703,9 @@ public class IL2CPPDumpImporter extends GhidraScript {
 			println("Encountered Exception: ");
 			println(message);
 			println(e.getMessage());
-			println(e.getStackTrace()[0].toString());
+			for (StackTraceElement element : e.getStackTrace()) {
+				println(element.toString());
+			}
 			return;
 		}
 
@@ -672,7 +716,10 @@ public class IL2CPPDumpImporter extends GhidraScript {
 			logWriter.newLine();
 			logWriter.write(e.getMessage());
 			logWriter.newLine();
-			logWriter.write(e.getStackTrace()[0].toString());
+			for (StackTraceElement element : e.getStackTrace()) {
+				logWriter.write(element.toString());
+				logWriter.newLine();
+			}
 			logWriter.newLine();
 		} catch (Exception ex) {
 			println("error writing to log file: " + ex.getMessage());
@@ -835,3 +882,4 @@ public class IL2CPPDumpImporter extends GhidraScript {
 		}
 	}
 }
+
