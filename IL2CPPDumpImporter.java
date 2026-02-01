@@ -528,31 +528,33 @@ public class IL2CPPDumpImporter extends GhidraScript {
 			function = getFunctionAt(address);
 
 			// if its a really small function, it's probably generic, so make a generic one instead
-			int instructionCount = 0;
-			InstructionIterator instructions = currentProgram.getListing().getInstructions(function.getBody(), true);
+			if (makeShortGeneric) {
+				int instructionCount = 0;
+				InstructionIterator instructions = currentProgram.getListing().getInstructions(function.getBody(), true);
 
-			boolean isShort = false;
-			while (instructions.hasNext()) {
-				Instruction instruction = instructions.next();
-				instructionCount++;
-				if (instruction.getMnemonicString().toLowerCase().contains("jmp")) {
-					break;
+				boolean isShort = false;
+				while (instructions.hasNext()) {
+					Instruction instruction = instructions.next();
+					instructionCount++;
+					if (instruction.getMnemonicString().toLowerCase().contains("jmp")) {
+						break;
+					}
+					if (instructionCount > 6) { 
+						isShort = true;
+						break; 
+					}
 				}
-				if (instructionCount > 6) { 
-					isShort = true;
-					break; 
+				if (isShort) {
+					try {
+						function.getSymbol().delete();
+						functionManager.removeFunction(address);
+						var name = String.format("GenericFunction_%x", address.getOffset());
+						createFunction(address, name);
+					} catch (Exception e) {
+						logException("error creating label for generic function: " + method.name, e);
+					}
+					return;
 				}
-			}
-			if (isShort) {
-				try {
-					function.getSymbol().delete();
-					functionManager.removeFunction(address);
-					var name = String.format("GenericFunction_%x", address.getOffset());
-					createFunction(address, name);
-				} catch (Exception e) {
-					logException("error creating label for generic function: " + method.name, e);
-				}
-				return;
 			}
 		} catch (Exception e) {
 			logException("error creating function: " + method.name + ", parent: " + parent.name, e);
